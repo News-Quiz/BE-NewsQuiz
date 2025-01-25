@@ -1,9 +1,12 @@
 package com.example.service;
 
+import com.example.entity.News;
+import com.example.repository.NewsRepository;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -21,40 +24,26 @@ public class CrawlingService {
             "경제", "https://news.naver.com/section/101",
             "사회", "https://news.naver.com/section/102",
             "생활/문화", "https://news.naver.com/section/103",
-            "IT/과학", "https://news.naver.com/section/104"
+            "IT/과학", "https://news.naver.com/section/105",
+            "세계", "https://news.naver.com/section/104"
     );
 
+    @Autowired
+    private NewsRepository newsRepository;
+
     // 모든 카테고리 뉴스 가져오기
-    public List<String> fetchNewsByCategory() {
-        List<String> result = new ArrayList<>();
+    public void fetchAndSaveNewsByCategory() {
         for (Map.Entry<String, String> entry : CATEGORY_URLS.entrySet()) {
             String category = entry.getKey();
             String url = entry.getValue();
-            result.add("Category: " + category + "\n");
-            result.addAll(fetchNewsFromUrl(url));
-        }
-        return result;
-    }
-
-    // 개별 기사 본문 가져오기
-    private String fetchArticleContent(String articleUrl) {
-        try {
-            Document articleDoc = Jsoup.connect(articleUrl)
-                    .userAgent(USER_AGENT)
-                    .header("Content-Type", "text/html; charset=UTF-8")
-                    .get();
-
-            Element contentElement = articleDoc.selectFirst("#dic_area"); // 본문 ID
-            return (contentElement != null) ? contentElement.text() : "No content available";
-        } catch (Exception e) {
-            System.err.println("Error fetching article content from " + articleUrl + ": " + e.getMessage());
-            return "Error fetching content";
+            List<News> newsList = fetchNewsFromUrl(url, category);
+            saveNewsToDatabase(newsList);
         }
     }
 
     // 특정 URL에서 뉴스 가져오기
-    private List<String> fetchNewsFromUrl(String url) {
-        List<String> newsList = new ArrayList<>();
+    private List<News> fetchNewsFromUrl(String url, String category) {
+        List<News> newsList = new ArrayList<>();
         try {
             Document doc = Jsoup.connect(url)
                     .userAgent(USER_AGENT)
@@ -65,7 +54,7 @@ public class CrawlingService {
             int count = 0;
 
             for (Element article : articles) {
-                if (count >= 10) break; // 최대 10개 제한
+                if (count >= 5) break; // 최대 5개 제한
 
                 // 제목과 링크 추출
                 Element titleElement = article.selectFirst("a.sa_text_title");
@@ -76,20 +65,26 @@ public class CrawlingService {
                 Element summaryElement = article.selectFirst("div.sa_text_lede");
                 String summary = (summaryElement != null) ? summaryElement.text() : "No summary available";
 
-                // 기사 본문 내용 추출
-                String content = fetchArticleContent(link);
+                // News 엔티티 생성
+                News news = new News();
+                news.setTitle(title);
+                news.setSource(link);
+                news.setContent(summary);
+                news.setCategory(category);
 
-                // 결과 리스트에 줄바꿈 추가
-                newsList.add("Title: " + title + "<br>");
-                newsList.add("Link: " + link + "<br>");
-                newsList.add("Summary: " + summary + "<br>");
-                newsList.add("Content: " + content + "<br>");
-                newsList.add("-------------------------<br>");
+                newsList.add(news);
                 count++;
             }
         } catch (Exception e) {
-            newsList.add("Error fetching news from " + url + ": " + e.getMessage() + "\n");
+            System.err.println("Error fetching news from " + url + ": " + e.getMessage());
         }
         return newsList;
     }
+
+    // 데이터베이스에 저장
+    private void saveNewsToDatabase(List<News> newsList) {
+        newsRepository.saveAll(newsList);
+    }
+
+
 }
