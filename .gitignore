@@ -71,3 +71,6 @@ ehthumbs.db
 *.swo
 *.bak
 *~
+
+# Ignore application.yml
+application.yml

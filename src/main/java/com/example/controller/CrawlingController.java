@@ -18,7 +18,7 @@ public class CrawlingController {
         this.crawlingService = crawlingService;
     }
 
-    @GetMapping(value = "/categories", produces = MediaType.TEXT_HTML_VALUE)
+    @GetMapping(value = "/crawl", produces = MediaType.TEXT_HTML_VALUE)
     public String getNewsByCategory() {
         List<String> news = crawlingService.fetchNewsByCategory();
         return String.join("", news); // HTML 문자열로 합치기
