@@ -32,59 +32,67 @@ public class CrawlingService {
     private NewsRepository newsRepository;
 
     // 모든 카테고리 뉴스 가져오기
-    public void fetchAndSaveNewsByCategory() {
-        for (Map.Entry<String, String> entry : CATEGORY_URLS.entrySet()) {
-            String category = entry.getKey();
-            String url = entry.getValue();
-            List<News> newsList = fetchNewsFromUrl(url, category);
-            saveNewsToDatabase(newsList);
+    public List<News> fetchAndSaveNewsByCategory() {
+        List<News> crawledArticles = performCrawling(); // 크롤링된 데이터를 가져옵니다.
+        List<News> savedArticles = new ArrayList<>();
+
+        for (News article : crawledArticles) {
+            if (!newsRepository.existsByTitleAndSource(article.getTitle(), article.getSource())) {
+                News savedArticle = newsRepository.save(article); // 저장 후 반환된 엔티티 추가
+                savedArticles.add(savedArticle);
+            }
         }
+
+        return savedArticles; // 새로 저장된 기사만 반환
     }
 
     // 특정 URL에서 뉴스 가져오기
-    private List<News> fetchNewsFromUrl(String url, String category) {
-        List<News> newsList = new ArrayList<>();
+    private List<News> performCrawling() {
+        List<News> articles = new ArrayList<>();
+
         try {
-            Document doc = Jsoup.connect(url)
-                    .userAgent(USER_AGENT)
-                    .timeout(5000) // 타임아웃 설정
-                    .get();
+            for (Map.Entry<String, String> entry : CATEGORY_URLS.entrySet()) {
+                String category = entry.getKey();
+                String url = entry.getValue();
 
-            Elements articles = doc.select("li.sa_item._SECTION_HEADLINE"); // 기사 블록 선택
-            int count = 0;
+                System.out.println("Crawling category: " + category + ", URL: " + url);
 
-            for (Element article : articles) {
-                if (count >= 5) break; // 최대 5개 제한
+                Document doc = Jsoup.connect(url)
+                        .userAgent(USER_AGENT)
+                        .timeout(5000) // 타임아웃 설정
+                        .get();
 
-                // 제목과 링크 추출
-                Element titleElement = article.selectFirst("a.sa_text_title");
-                String title = (titleElement != null) ? titleElement.text() : "No title";
-                String link = (titleElement != null) ? titleElement.absUrl("href") : "No link";
+                Elements articleElements = doc.select("li.sa_item._SECTION_HEADLINE");
+                int count = 0;
 
-                // 요약 본문 추출
-                Element summaryElement = article.selectFirst("div.sa_text_lede");
-                String summary = (summaryElement != null) ? summaryElement.text() : "No summary available";
+                for (Element articleElement : articleElements) {
+                    if (count >= 5) break; // 각 카테고리에서 최대 5개의 기사만 가져오기
 
-                // News 엔티티 생성
-                News news = new News();
-                news.setTitle(title);
-                news.setSource(link);
-                news.setContent(summary);
-                news.setCategory(category);
+                    // 제목과 링크 추출
+                    Element titleElement = articleElement.selectFirst("a.sa_text_title");
+                    String title = (titleElement != null) ? titleElement.text() : "No title";
+                    String link = (titleElement != null) ? titleElement.absUrl("href") : "No link";
 
-                newsList.add(news);
-                count++;
+                    // 요약 본문 추출
+                    Element summaryElement = articleElement.selectFirst("div.sa_text_lede");
+                    String summary = (summaryElement != null) ? summaryElement.text() : "No summary available";
+
+                    // News 엔티티 생성 및 설정
+                    News news = new News();
+                    news.setTitle(title);
+                    news.setSource(link);
+                    news.setContent(summary);
+                    news.setCategory(category);
+
+                    articles.add(news);
+                    count++;
+                }
             }
         } catch (Exception e) {
-            System.err.println("Error fetching news from " + url + ": " + e.getMessage());
+            System.err.println("Error during crawling: " + e.getMessage());
         }
-        return newsList;
-    }
 
-    // 데이터베이스에 저장
-    private void saveNewsToDatabase(List<News> newsList) {
-        newsRepository.saveAll(newsList);
+        return articles;
     }
-
 
 }
