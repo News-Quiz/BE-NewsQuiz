@@ -31,7 +31,7 @@ public class CrawlingService {
     @Autowired
     private NewsRepository newsRepository;
 
-    // 모든 카테고리 뉴스 가져오기
+    // 카테고리별 뉴스 가져오기, 저장
     public List<News> fetchAndSaveNewsByCategory() {
         List<News> crawledArticles = performCrawling(); // 크롤링된 데이터를 가져옵니다.
         List<News> savedArticles = new ArrayList<>();
@@ -46,7 +46,7 @@ public class CrawlingService {
         return savedArticles; // 새로 저장된 기사만 반환
     }
 
-    // 특정 URL에서 뉴스 가져오기
+    // URL에서 뉴스 가져오기
     private List<News> performCrawling() {
         List<News> articles = new ArrayList<>();
 

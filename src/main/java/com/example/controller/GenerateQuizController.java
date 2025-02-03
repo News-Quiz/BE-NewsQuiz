@@ -1,9 +1,12 @@
 package com.example.controller;
 
 import com.example.service.GenerateQuizService;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -17,11 +20,8 @@ public class GenerateQuizController {
     }
 
     @PostMapping("/generatequiz")
-    public ResponseEntity<String> generateQuiz(@RequestParam String title, @RequestParam String summary) {
-        // 퀴즈 생성 요청을 서비스에 전달
-        String generatedQuiz = generateQuizService.generateQuiz(title, summary);
-
-        // 생성된 퀴즈를 응답
-        return ResponseEntity.ok(generatedQuiz);
+    public ResponseEntity<Object> generateQuiz() {
+        JSONObject quiz = generateQuizService.generateQuizzesFromLatestNews();
+        return ResponseEntity.ok(quiz.toMap());
     }
 }
